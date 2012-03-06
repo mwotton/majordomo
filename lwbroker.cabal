@@ -52,7 +52,7 @@ Library
   --  Exposed-modules: Worker.hs
   
   -- Packages needed in order to build this package.
-  Build-depends: base, zeromq-haskell, bytestring, monad-loops
+  Build-depends: base, zeromq-haskell, bytestring, monad-loops, time, old-locale
   
   -- Modules not exported by this package.
   -- Other-modules:       
