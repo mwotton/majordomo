@@ -2,18 +2,18 @@
 module MDWorker where
 import Data.ByteString.Char8
 import Data.Int
-import Prelude hiding(putStrLn)
+import Prelude 
 import qualified System.ZMQ as Z
 import System.ZMQ hiding(receive)
 import Control.Applicative
 import Data.Maybe(maybeToList)
 import Control.Exception
 import Control.Monad
-import Control.Monad.Loops(iterateWhile)
 import Data.Time.Clock
 import Data.Time.Format
 import System.Locale
 import Control.Concurrent
+import System.Timeout
 
 data Protocol = WORKER_PROTOCOL
 instance Show Protocol where
@@ -22,8 +22,6 @@ instance Show Protocol where
 data Response = Response { protocol :: Protocol,
                            service :: ByteString,
                            response :: ByteString }
-
-
 
 data ResponseCode = REPLY | READY | WORKER_HEARTBEAT
 instance Show ResponseCode where
@@ -54,76 +52,118 @@ send_all _ [] = error "empty send not allowed"
 
 send_to_broker :: Socket a -> ResponseCode -> Maybe ByteString ->
                   Maybe ByteString -> IO ()
-send_to_broker sock cmd option message = do
+send_to_broker sock cmd option message = 
   send_all sock $ ["",
                    pack $ show WORKER_PROTOCOL,
                    pack $ show cmd] ++
                    maybeToList option ++
                    maybeToList message
 
-broker_connect :: Socket a -> ByteString -> IO ()
-broker_connect sock svc = send_to_broker sock READY (Just svc) Nothing
-
 whileJust :: Monad m => (b -> m (Maybe b)) -> b -> m b
 whileJust action seed = action seed >>=  maybe (return seed) (whileJust action)
 
-start :: Socket a -> ByteString -> (ByteString -> IO ( ByteString)) -> IO b
-start sock servicename req_handler  = do
-  putStrLn "worker starting"
-  time <- addUTCTime (fromIntegral $ heartbeat defaultWorker) <$> getCurrentTime
-  let worker = defaultWorker { heartbeat_at = time, handler = req_handler }
-  forever $ do
-    broker_connect sock servicename
-    whileJust (receive sock) worker
+start :: WorkerState a -> IO ()
+start worker = forever (withBroker readTillDrop worker)
 
-data WorkerState = WorkerState { heartbeat_at :: UTCTime,
-                                 liveness     :: Int,
-                                 heartbeat    :: Int64,
-                                 reconnect    :: Int,
-                                 handler      :: ByteString -> IO ByteString
-                               }
+readTillDrop sock worker = whileJust (receive sock) worker
+
+
+data WorkerState a = WorkerState { heartbeat_at :: UTCTime,
+                                   liveness     :: Int,
+                                   heartbeat    :: Int64,
+                                   reconnect    :: Int,
+                                   broker       :: String,
+                                   context      :: System.ZMQ.Context,
+                                   svc          :: ByteString,
+                                   handler      :: ByteString -> IO ByteString
+                                 }
 
 epoch :: UTCTime
 epoch = buildTime defaultTimeLocale []
 
-defaultWorker :: WorkerState
-defaultWorker = WorkerState { liveness = 3,
+lIVENESS = 3
+
+defaultWorker = WorkerState { liveness = 1, -- start it ready to die.
                               heartbeat_at = epoch,
-                              heartbeat = fromIntegral 3000,
-                              reconnect = 3000
+                              heartbeat = 2,
+                              reconnect = 2
                             }
 
-receive :: Socket a -> WorkerState -> IO (Maybe WorkerState)
-receive sock worker = do
-  [S _ polled] <- poll [S sock In] $ heartbeat worker
-  case polled of
-    None -> postCheck
-    In   -> handleEvent
-    _    -> error "oops, fucked"
-  where
-    postCheck = do
-      let newWorker = worker { liveness = liveness worker - 1 }
-      if liveness newWorker == 0
-        then do
-          send_to_broker sock WORKER_HEARTBEAT Nothing Nothing
-          time <- getCurrentTime
-          return $ Just $ newWorker { heartbeat_at = addUTCTime (fromIntegral $ heartbeat worker) time}
-        else threadDelay (reconnect newWorker) >> return Nothing
 
-    handleEvent = do
-      header <- Z.receive sock []
+withBroker go worker =
+  withSocket (context worker) XReq $ \sock -> do
+    loggedPut ( "connecting to broker " ++ broker worker)
+    connect sock (broker worker)
+    send_to_broker sock READY (Just $ svc worker) Nothing
+    now <- getCurrentTime
+    let time = addUTCTime (fromIntegral $ heartbeat worker) now
+    loggedPut ("beat at:" ++ show time)
+    go sock worker { liveness     = lIVENESS,
+                     heartbeat_at = time
+                   }
+
+loggedPut :: String -> IO ()
+loggedPut res = do
+  Prelude.putStr . show =<< getCurrentTime
+  Prelude.putStrLn (": " ++ res)
+  
+receive sock worker = do loggedPut "polling"
+                         next <- getMessage
+                         case next of
+                           Nothing -> loggedPut "no message" >> return Nothing
+                           Just w -> loggedPut "message!" >> postCheck w
+  where
+
+  getMessage = do
+    -- this timeout is different in 3.1
+    loggedPut $ "Polling socket: should finish in " ++ (show (heartbeat worker)) ++ "seconds"
+    
+  --  [S _ polled] <- poll [S sock In] $ 1000000 * heartbeat worker
+    polled <- timeout (1000000 * fromIntegral (heartbeat worker)) $ Z.receive sock []
+    loggedPut "polled"
+    case polled of
+      Nothing -> noMessage
+      Just s   -> handleEvent s
+  
+  noMessage :: IO (Maybe (WorkerState b))
+  noMessage = do
+    let live = liveness worker - 1
+    if liveness worker == 0
+       then loggedPut "reconnecting" >> threadDelay (1000000 * reconnect worker) >> return Nothing
+       else return $ Just worker { liveness = live }
+  postCheck :: WorkerState a -> IO (Maybe (WorkerState a))
+  postCheck worker = do
+      loggedPut "postcheck"
+      time <- getCurrentTime
+      loggedPut $ "beat at " ++ show (heartbeat_at worker)
+      if time > heartbeat_at worker
+        then do loggedPut "sending heartbeat"
+                send_to_broker sock WORKER_HEARTBEAT Nothing Nothing
+                loggedPut "sent heartbeat!"
+                time <- getCurrentTime
+                return $ Just $ worker { heartbeat_at = addUTCTime (fromIntegral $ heartbeat worker) time}
+        else loggedPut "no heartbeat required" >> return (Just worker)
+  handleEvent header = do
+      let zrecv = Z.receive sock []
+      loggedPut "handling"
       assert (header == "") (return ())
-      prot <- Z.receive sock []
+      prot <- zrecv
       assert (prot == "MDPW01") (return ())
       -- ideally, we'd encapsulate the process of reading
       -- the whole thing in in the parser. this will do for now though.
-      command <- parseCommand <$> Z.receive sock []
+      command <- parseCommand <$> zrecv
+      let new_worker = worker { liveness = lIVENESS }
       case command of
         Just REQUEST -> do
-          msg <- Z.receive sock []
+          loggedPut "handling a request"
+          msg <- zrecv
           reply <- (handler worker) msg
           send_to_broker sock REPLY Nothing (Just reply)
-          return $ Just worker
-        Just HEARTBEAT ->  return $ Just worker
-        Just DISCONNECT -> return Nothing
+          return $ Just new_worker
+        Just HEARTBEAT -> do 
+          loggedPut "handling a heartbeat"
+          return $ Just new_worker
+        Just DISCONNECT -> do
+          loggedPut "handling a disconnect"
+          return Nothing
         Nothing -> error "borked"
