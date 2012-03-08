@@ -20,7 +20,7 @@ elif [ /$1/ = /clean/ ]; then
     done
 elif [ -f $1.c ]; then
     echo "$1"
-    ./c -l -lzmq -lczmq $1
+    ./c -v -g -l -lzmq -lczmq $1
 else
     echo "syntax: build all | clean"
 fi
