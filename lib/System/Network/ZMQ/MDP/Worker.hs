@@ -7,7 +7,7 @@ import qualified Prelude
 import qualified System.ZMQ as Z
 import System.ZMQ hiding(receive)
 import Control.Applicative
-import Data.Maybe(maybeToList)
+
 import Control.Exception
 import Control.Monad
 import Data.Time.Clock
@@ -22,9 +22,9 @@ instance Show Protocol where
 
 type Address = ByteString -- cheaty.
 
-data Response = Response { envelope :: [Address],
-                           body     :: [ByteString] }
-
+data Response = Response { envelope :: ! [Address],
+                           body     :: ! [ByteString] }
+ 
 data ResponseCode = REPLY | READY | WORKER_HEARTBEAT
 instance Show ResponseCode where
   show REPLY      = "\003"
@@ -94,10 +94,10 @@ start worker = forever (withBroker readTillDrop worker)
 readTillDrop sock worker = whileJust (receive sock) worker
 
 
-data WorkerState a = WorkerState { heartbeat_at :: UTCTime,
-                                   liveness     :: Int,
-                                   heartbeat    :: Int64,
-                                   reconnect    :: Int,
+data WorkerState a = WorkerState { heartbeat_at :: ! UTCTime,
+                                   liveness     :: ! Int,
+                                   heartbeat    :: ! Int64,
+                                   reconnect    :: ! Int,
                                    broker       :: String,
                                    context      :: System.ZMQ.Context,
                                    svc          :: ByteString,
@@ -168,9 +168,9 @@ receive sock worker = do loggedPut "polling"
       -- loggedPut $ "beat at " ++ show (heartbeat_at worker)
       if {-# SCC time_comparison #-} time > heartbeat_at worker
         then do --loggedPut "sending heartbeat"
-                send_to_broker sock WORKER_HEARTBEAT [] []
+                {-# SCC postcheck_send #-} send_to_broker sock WORKER_HEARTBEAT [] []
                 --loggedPut "sent heartbeat!"
-                return $ Just $ updateWorkerTime worker time
+                {-# SCC postcheck_return #-} return $ Just $ updateWorkerTime worker time
         else return $ Just worker 
   
   updateWorkerTime w time = w { heartbeat_at = {-# SCC addtime #-} addUTCTime (fromIntegral $! heartbeat w) time}
