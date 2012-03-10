@@ -3,8 +3,7 @@ module Main where
 import System.ZMQ
 import Prelude hiding(getContents, putStr, putStrLn)
 import Data.ByteString.Char8
-import qualified MDCli
-
+import qualified System.Network.ZMQ.MDP.Client as MDCli
 main :: IO ()
 main = do
   input <- getContents

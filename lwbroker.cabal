@@ -40,19 +40,36 @@ Build-type:          Simple
 -- Extra-source-files:  
 
 -- Constraint on the version of Cabal needed to build this package.
-Cabal-version:       >=1.2
+Cabal-version:       >=1.10
 
 Executable echoclient
   Main-is: echoclient.hs
+  Build-depends: lwbroker,base, bytestring,
+                 zeromq-haskell >= 0.8.4
+  Default-Language: Haskell2010
+  ghc-options: -O2 -threaded
 Executable echoworker
   Main-is: echoworker.hs
+  Default-Language: Haskell2010
+  ghc-options: -O2 -threaded
+  ghc-prof-options: -auto-all
+  Build-depends: lwbroker,base, bytestring, 
+                 zeromq-haskell >= 0.8.4,
+                 threads, unix
 
 Library
   -- Modules exported by the library.
-  --  Exposed-modules: Worker.hs
-  
+  Exposed-modules: System.Network.ZMQ.MDP.Worker,
+                   System.Network.ZMQ.MDP.Client
+--  Default-Language: haskell-2010       
+  Default-Language: Haskell2010
   -- Packages needed in order to build this package.
-  Build-depends: base, zeromq-haskell, bytestring, monad-loops, time, old-locale
+  hs-source-dirs: lib
+  ghc-prof-options: -auto-all
+  ghc-options: -O2 -threaded
+  Build-depends: base, 
+                 zeromq-haskell >= 0.8.4,
+                 bytestring, monad-loops, time, old-locale
   
   -- Modules not exported by this package.
   -- Other-modules:       
