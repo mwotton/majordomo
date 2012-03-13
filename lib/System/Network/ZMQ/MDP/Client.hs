@@ -17,8 +17,7 @@ type MDError = ByteString
 
 send :: Socket a -> ByteString -> IO (Either ByteString Response)
 send sock input =
-  do connect sock "tcp://*:5555" 
-     Z.send sock "MDPC01"  [SndMore]
+  do Z.send sock "MDPC01"  [SndMore]
      Z.send sock "echo" [SndMore]
      Z.send sock input  []
      maybeprot <- timeout (1000000 * 3) $ receive sock []

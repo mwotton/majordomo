@@ -9,7 +9,7 @@ main = do
   input <- getContents
   withContext 1 $ \c ->
     withSocket c Req $ \sock -> do
-      connect sock "tcp://*:5555"
+      connect sock "tcp://127.0.0.1:5555"
       res <- MDCli.send sock input
       putStr $ case res of
         Left l ->  "Bad response: " `append` l
