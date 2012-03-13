@@ -91,6 +91,7 @@ whileJust action seed = action seed >>=  maybe (return seed) (whileJust action)
 start :: WorkerState a -> IO ()
 start worker = forever (withBroker readTillDrop worker)
 
+readTillDrop :: Socket a -> WorkerState a1 -> IO (WorkerState a1)
 readTillDrop sock worker = whileJust (receive sock) worker
 
 
@@ -163,17 +164,17 @@ receive sock worker = do loggedPut "polling"
        else return $ Just worker { liveness = live }
   postCheck :: WorkerState a -> IO (Maybe (WorkerState a))
   postCheck worker = do
-    --loggedPut "postcheck"
-      time <- {-# SCC getCurrentTime #-} getCurrentTime
+      --loggedPut "postcheck"
+      time <- {-# SCC "getCurrentTime" #-} getCurrentTime
       -- loggedPut $ "beat at " ++ show (heartbeat_at worker)
-      if {-# SCC time_comparison #-} time > heartbeat_at worker
+      if {-# SCC "time_comparison" #-} time > heartbeat_at worker
         then do --loggedPut "sending heartbeat"
-                {-# SCC postcheck_send #-} send_to_broker sock WORKER_HEARTBEAT [] []
+                {-# SCC "postcheck_send" #-} send_to_broker sock WORKER_HEARTBEAT [] []
                 --loggedPut "sent heartbeat!"
-                {-# SCC postcheck_return #-} return $ Just $ updateWorkerTime worker time
+                {-# SCC "postcheck_return" #-} return $ Just $ updateWorkerTime worker time
         else return $ Just worker 
   
-  updateWorkerTime w time = w { heartbeat_at = {-# SCC addtime #-} addUTCTime (fromIntegral $! heartbeat w) time}
+  updateWorkerTime w time = w { heartbeat_at = {-# SCC "addtime" #-} addUTCTime (fromIntegral $! heartbeat w) time}
   
   handleEvent header = do
       let zrecv = Z.receive sock []
