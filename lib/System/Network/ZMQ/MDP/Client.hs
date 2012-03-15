@@ -11,14 +11,13 @@ data Protocol = MDCP01
 data Response = Response { protocol :: Protocol,
                            service :: ByteString,
                            response :: ByteString }
-                
-type MDError = ByteString                              
 
+type MDError = ByteString
 
-send :: Socket a -> ByteString -> IO (Either ByteString Response)
-send sock input =
+send :: Socket a -> ByteString -> ByteString -> IO (Either ByteString Response)
+send sock service input =
   do Z.send sock "MDPC01"  [SndMore]
-     Z.send sock "echo" [SndMore]
+     Z.send sock service   [SndMore]
      Z.send sock input  []
      maybeprot <- timeout (1000000 * 3) $ receive sock []
      case maybeprot of
@@ -27,6 +26,3 @@ send sock input =
          res <- Response MDCP01 <$> receive sock [] <*> receive sock []
          return $ Right res
        _ -> return $ Left "bad protocol"
-                            
-                         
-     
