@@ -16,16 +16,24 @@ data Response = Response { protocol :: Protocol,
 receiveTillEmpty :: Socket a -> IO [ByteString]
 receiveTillEmpty sock = do
   more <- Z.moreToReceive sock
-  if more  
+  if more
     then (:) <$> receive sock [] <*> receiveTillEmpty sock
     else return []
 
+--
+-- Sends a multipart message
+--
+sendAll :: Socket a -> [ByteString] -> IO ()
+sendAll sock []     = return ()
+sendAll sock (m:[]) = Z.send sock m []
+sendAll sock (m:ms) = Z.send sock m [SndMore] >> sendAll sock ms
 
-send :: Socket a -> ByteString -> ByteString -> IO (Either ByteString Response)
-send sock svc input =
+
+send :: Socket a -> ByteString -> [ByteString] -> IO (Either ByteString Response)
+send sock svc msgs =
   do Z.send sock "MDPC01"  [SndMore]
-     Z.send sock svc [SndMore]
-     Z.send sock input  []
+     Z.send sock svc       [SndMore]
+     sendAll sock msgs
      maybeprot <- timeout (1000000 * 3) $ receive sock []
      case maybeprot of
        Nothing -> return $ Left "Timed out!"
