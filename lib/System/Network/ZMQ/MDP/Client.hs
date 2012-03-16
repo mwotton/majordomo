@@ -14,7 +14,7 @@ import Data.ByteString.Char8
 import qualified System.ZMQ as Z
 import System.ZMQ hiding(send)
 import Control.Applicative
-import System.Timeout
+import System.Timeout 
 
 data Protocol = MDCP01
 
@@ -29,11 +29,12 @@ withMDPClientSocket socketAddress io =
  withContext 1 $ \c -> withSocket c Req $ \s -> do
    connect s socketAddress
    io (MDPClientSocket s)
+ 
 
 send :: MDPClientSocket -> ByteString -> [ByteString] -> IO (Either ByteString Response)
-send mdpcs service msgs =
+send mdpcs svc msgs =
   do Z.send sock "MDPC01"  [SndMore]
-     Z.send sock service   [SndMore]
+     Z.send sock svc   [SndMore]
      sendAll sock msgs
      maybeprot <- timeout (1000000 * 3) $ receive sock []
      case maybeprot of
@@ -60,6 +61,6 @@ receiveTillEmpty sock = do
 -- Sends a multipart message
 --
 sendAll :: Socket a -> [ByteString] -> IO ()
-sendAll sock []     = return ()
+sendAll _sock []     = return ()
 sendAll sock (m:[]) = Z.send sock m []
 sendAll sock (m:ms) = Z.send sock m [SndMore] >> sendAll sock ms

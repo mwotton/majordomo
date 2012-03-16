@@ -41,10 +41,10 @@ Cabal-version: >= 1.8
 -- Extra-source-files:  
 
 
-Executable echoclient
+Executable mdp_client
   Main-is: echoclient.hs
   Build-depends: majordomo,base, bytestring,
-                 zeromq-haskell >= 0.8.4
+                 zeromq-haskell >= 0.8.4, cmdargs
   ghc-options: -O2 -threaded
 Executable echoworker
   Main-is: echoworker.hs
