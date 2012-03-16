@@ -22,8 +22,10 @@ client = Client{ broker        = def &= argPos 0 ,
 main :: IO ()
 main = do 
   s <- cmdArgs client
-  print s
-  C.withMDPClientSocket (broker s) $ \sock -> do
+  -- print s
+  if (L.null $ message_parts s)
+    then putStrLn "must send at least one argument"
+    else C.withMDPClientSocket (broker s) $ \sock -> do
       res <- C.send sock (pack $ service s) (Prelude.map pack $ message_parts s)
       putStr $ case res of
         Left l ->  "Bad response: " `append` l

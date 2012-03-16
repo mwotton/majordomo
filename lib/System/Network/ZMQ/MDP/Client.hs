@@ -23,18 +23,19 @@ data Response = Response { protocol :: Protocol,
                            response :: [ByteString] }
 
 -- this can either be XReq or Req...
-data MDPClientSocket = MDPClientSocket { mdpClientSocket :: Socket XReq }
+data MDPClientSocket = MDPClientSocket { mdpClientSocket :: Socket Req }
 
 withMDPClientSocket :: String -> (MDPClientSocket -> IO a) -> IO a
 withMDPClientSocket socketAddress io =
- withContext 1 $ \c -> withSocket c XReq $ \s -> do
+ withContext 1 $ \c -> withSocket c Req $ \s -> do
    connect s socketAddress
    io (MDPClientSocket s)
  
 
 send :: MDPClientSocket -> ByteString -> [ByteString] -> IO (Either ByteString Response)
 send mdpcs svc msgs =
-  do Z.send sock "MDPC01"  [SndMore]
+  do -- Z.send sock "" [SndMore]
+     Z.send sock "MDPC01"  [SndMore]
      Z.send sock svc   [SndMore]
      sendAll sock msgs
      maybeprot <- timeout (1000000 * 3) $ receive sock []

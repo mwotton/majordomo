@@ -42,7 +42,7 @@ Cabal-version: >= 1.8
 
 
 Executable mdp_client
-  Main-is: echoclient.hs
+  Main-is: mdp_client.hs
   Build-depends: majordomo,base, bytestring,
                  zeromq-haskell >= 0.8.4, cmdargs
   ghc-options: -O2 -threaded
