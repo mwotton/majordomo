@@ -24,7 +24,7 @@ type Address = ByteString -- cheaty.
 
 data Response = Response { envelope :: ! [Address],
                            body     :: ! [ByteString] }
- 
+
 data ResponseCode = REPLY | READY | WORKER_HEARTBEAT
 instance Show ResponseCode where
   show REPLY      = "\003"
@@ -48,7 +48,7 @@ type MDError = ByteString
 
 
 read_till_empty :: Socket a -> IO [ByteString]
-read_till_empty sock = do 
+read_till_empty sock = do
   frame <- Z.receive sock []
   if frame == ""
      then return []
@@ -64,7 +64,7 @@ send_all sock = go
 
 send_to_broker :: Socket a -> ResponseCode -> [ByteString] ->
                   [ByteString] -> IO ()
-send_to_broker sock cmd option message = 
+send_to_broker sock cmd option message =
   send_all sock $ ["",
                    pack $ show WORKER_PROTOCOL,
                    pack $ show cmd] ++ option ++ message
@@ -82,7 +82,7 @@ Frames 5+: Reply body (opaque binary)
 --
 send_response :: Socket a -> Response -> IO ()
 send_response sock resp = send_to_broker sock REPLY (envelope resp) (body resp)
-  
+
 --  send_to_broker sock REPLY Nothing [reply])
 
 whileJust :: Monad m => (b -> m (Maybe b)) -> b -> m b
@@ -133,7 +133,7 @@ loggedPut :: String -> IO ()
 loggedPut res = return () -- do
 --  Prelude.putStr . show =<< getCurrentTime
 --  Prelude.putStrLn (": " ++ res)
-  
+
 receive sock worker = do loggedPut "polling"
                          next <- getMessage
                          case next of
@@ -144,18 +144,18 @@ receive sock worker = do loggedPut "polling"
   getMessage = do
     -- this timeout is different in 3.1
     -- loggedPut $ "Polling socket: should finish in " ++ (show (heartbeat worker)) ++ "seconds"
-    
+
     [S _ polled] <- poll [S sock In] $ 1000000 * heartbeat worker
     -- use this in 3.1
     -- polled <- timeout (1000000 * fromIntegral (heartbeat worker)) $ Z.receive sock []
-    
+
     case polled of
       None -> noMessage
       In   -> Z.receive sock [] >>= handleEvent
     -- case polled of
     --   Nothing -> noMessage
     --   Just s   -> handleEvent s
-  
+
   noMessage :: IO (Maybe (WorkerState b))
   noMessage = do
     let live = liveness worker - 1
@@ -172,10 +172,11 @@ receive sock worker = do loggedPut "polling"
                 {-# SCC "postcheck_send" #-} send_to_broker sock WORKER_HEARTBEAT [] []
                 --loggedPut "sent heartbeat!"
                 {-# SCC "postcheck_return" #-} return $ Just $ updateWorkerTime worker time
-        else return $ Just worker 
-  
-  updateWorkerTime w time = w { heartbeat_at = {-# SCC "addtime" #-} addUTCTime (fromIntegral $! heartbeat w) time}
-  
+        else return $ Just worker
+
+  updateWorkerTime w time =
+    w { heartbeat_at = {-# SCC "addtime" #-} addUTCTime (fromIntegral $! heartbeat w) time}
+
   handleEvent header = do
       let zrecv = Z.receive sock []
       -- loggedPut "handling"
@@ -194,7 +195,7 @@ receive sock worker = do loggedPut "polling"
           send_response sock Response { envelope = addresses,
                                         body = [reply_string] }
           return $ Just new_worker
-        Just HEARTBEAT -> do 
+        Just HEARTBEAT -> do
           -- loggedPut "handling a heartbeat"
           return $ Just new_worker
         Just DISCONNECT -> do
