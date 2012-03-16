@@ -14,7 +14,7 @@ import Data.ByteString.Char8
 import qualified System.ZMQ as Z
 import System.ZMQ hiding(send)
 import Control.Applicative
-import System.Timeout 
+import System.Timeout
 
 data Protocol = MDCP01
 
@@ -22,11 +22,12 @@ data Response = Response { protocol :: Protocol,
                            service :: ByteString,
                            response :: [ByteString] }
 
-data MDPClientSocket = MDPClientSocket { mdpClientSocket :: Socket Req }
+-- this can either be XReq or Req...
+data MDPClientSocket = MDPClientSocket { mdpClientSocket :: Socket XReq }
 
 withMDPClientSocket :: String -> (MDPClientSocket -> IO a) -> IO a
 withMDPClientSocket socketAddress io =
- withContext 1 $ \c -> withSocket c Req $ \s -> do
+ withContext 1 $ \c -> withSocket c XReq $ \s -> do
    connect s socketAddress
    io (MDPClientSocket s)
  
