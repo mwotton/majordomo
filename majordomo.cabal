@@ -1,5 +1,5 @@
 Name:                majordomo
-Version:             0.1
+Version:             0.1.1
 Synopsis:            Majordomo protocol for ZeroMQ
 Description:         The Majordomo Protocol (MDP) defines a reliable
                      service-oriented request-reply dialog between a
@@ -43,7 +43,7 @@ Library
   hs-source-dirs: lib
   ghc-prof-options: -auto-all
   ghc-options: -O2
-  Build-depends: base, 
+  Build-depends: base >= 2 && <= 4.5,
                  zeromq-haskell >= 0.8.4,
                  bytestring, monad-loops, time, old-locale
   
