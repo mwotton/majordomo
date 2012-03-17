@@ -46,7 +46,7 @@ parseCommand _ = Nothing
 
 type MDError = ByteString
 
-
+   
 read_till_empty :: Socket a -> IO [ByteString]
 read_till_empty sock = do
   frame <- Z.receive sock []
@@ -108,15 +108,26 @@ data WorkerState a = WorkerState { heartbeat_at :: ! UTCTime,
 epoch :: UTCTime
 epoch = buildTime defaultTimeLocale []
 
+lIVENESS :: Int
 lIVENESS = 3
 
-defaultWorker = WorkerState { liveness = 1, -- start it ready to die.
-                              heartbeat_at = epoch,
-                              heartbeat = 2,
-                              reconnect = 2
-                            }
+
+withWorker :: String -> ByteString -> (ByteString -> IO ByteString) -> IO ()
+withWorker  broker_ service_ io =
+ withContext 1 $ \c -> 
+ start WorkerState { broker = broker_,
+                     context = c,
+                     svc = service_,
+                     handler = io,
+                     liveness = 1,
+                     heartbeat_at = epoch,
+                     heartbeat = 2,
+                     reconnect = 2
+                   }
+ 
 
 
+withBroker :: (Socket XReq -> WorkerState a -> IO b) -> WorkerState t -> IO b
 withBroker go worker =
   withSocket (context worker) XReq $ \sock -> do
     loggedPut ( "connecting to broker " ++ broker worker)
@@ -130,10 +141,11 @@ withBroker go worker =
                    }
 
 loggedPut :: String -> IO ()
-loggedPut res = return () -- do
+loggedPut _res = return () -- do
 --  Prelude.putStr . show =<< getCurrentTime
 --  Prelude.putStrLn (": " ++ res)
 
+receive :: Socket a -> WorkerState a1 -> IO (Maybe (WorkerState a2))
 receive sock worker = do loggedPut "polling"
                          next <- getMessage
                          case next of

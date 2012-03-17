@@ -2,11 +2,11 @@
 module System.Network.ZMQ.MDP.Client (
   -- | Types
   Response(..),
-  MDPClientSocket, -- opaque datatype 
+  ClientSocket, -- opaque datatype 
 
   -- | Functions
   send,
-  withMDPClientSocket
+  withClientSocket
 
 ) where
 
@@ -23,16 +23,16 @@ data Response = Response { protocol :: Protocol,
                            response :: [ByteString] }
 
 -- this can either be XReq or Req...
-data MDPClientSocket = MDPClientSocket { mdpClientSocket :: Socket Req }
+data ClientSocket = ClientSocket { clientSocket :: Socket Req }
 
-withMDPClientSocket :: String -> (MDPClientSocket -> IO a) -> IO a
-withMDPClientSocket socketAddress io =
+withClientSocket :: String -> (ClientSocket -> IO a) -> IO a
+withClientSocket socketAddress io =
  withContext 1 $ \c -> withSocket c Req $ \s -> do
    connect s socketAddress
-   io (MDPClientSocket s)
+   io (ClientSocket s)
  
 
-send :: MDPClientSocket -> ByteString -> [ByteString] -> IO (Either ByteString Response)
+send :: ClientSocket -> ByteString -> [ByteString] -> IO (Either ByteString Response)
 send mdpcs svc msgs =
   do -- Z.send sock "" [SndMore]
      Z.send sock "MDPC01"  [SndMore]
@@ -46,7 +46,7 @@ send mdpcs svc msgs =
          return $ Right res
        _ -> return $ Left "bad protocol"
   where
-    sock = mdpClientSocket mdpcs
+    sock = clientSocket mdpcs
 
 --
 -- Helper functions

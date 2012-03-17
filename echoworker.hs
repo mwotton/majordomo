@@ -22,12 +22,11 @@ threaded actions = do
   Prelude.putStrLn "all dead"
 
 main :: IO ()
-main =
-  --installHandler sigINT (Catch $ Prelude.putStrLn "interrupted!" >> exitSuccess) Nothing
-  withContext 1 $ \c -> do
-    threaded $ (flip map) [1..4] $ \tid ->
-      W.start W.defaultWorker { W.svc     = "echo",
-                                W.broker  = "tcp://127.0.0.1:5555",
-                                W.handler = \x ->  return ("hi there, " `append` x),
-                                W.context = c
-                            }
+main = threaded $ flip map [1..4] $ \tid ->
+  W.withWorker "tcp://127.0.0.1:5555" "echo"
+               (\x ->  return ("hi there, " `append` x))
+
+ 
+ -- withContext 1 $ \c ->
+ --    threaded $ flip map [1..4] $ \tid ->
+ --      W.start W.defaultWorker {                            }
