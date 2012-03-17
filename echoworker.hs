@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
-import System.ZMQ
 import Data.ByteString hiding (map)
 
 import qualified System.Network.ZMQ.MDP.Worker as W

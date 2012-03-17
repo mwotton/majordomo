@@ -20,21 +20,20 @@ Maintainer:          mark@ninjablocks.com, sean@ninjablocks.com
 Category:            Network
 Build-type:          Simple
 Cabal-version: >= 1.8
-
+Source-Repository head
+   type: git
+   location: git://github.com/ninjablocks/majordomo.git
 
 Executable mdp_client
   Main-is: mdp_client.hs
-  Build-depends: majordomo,base, bytestring,
-                 zeromq-haskell >= 0.8.4, cmdargs
+  Build-depends: majordomo,base, bytestring, cmdargs
   ghc-options: -O2 -threaded
 
 Executable echoworker
   Main-is: echoworker.hs
   ghc-options: -O2 -threaded
   ghc-prof-options: -auto-all
-  Build-depends: majordomo,base, bytestring, 
-                 zeromq-haskell >= 0.8.4,
-                 threads, unix
+  Build-depends: majordomo,base, bytestring, threads, unix
 
 Library
   -- Modules exported by the library.
@@ -43,7 +42,7 @@ Library
   -- Packages needed in order to build this package.
   hs-source-dirs: lib
   ghc-prof-options: -auto-all
-  ghc-options: -O2 
+  ghc-options: -O2
   Build-depends: base, 
                  zeromq-haskell >= 0.8.4,
                  bytestring, monad-loops, time, old-locale
