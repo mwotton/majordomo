@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module System.Network.ZMQ.MDP.Worker where
+
+-- libraries
 import Data.ByteString.Char8
 import Data.Int
 import Prelude hiding (putStr, putStrLn)
@@ -15,6 +17,9 @@ import Data.Time.Format
 import System.Locale
 import Control.Concurrent
 import System.Timeout
+
+-- friends
+import System.Network.ZMQ.MDP.Util
 
 data Protocol = WORKER_PROTOCOL
 instance Show Protocol where
@@ -43,29 +48,12 @@ parseCommand "\004" = Just HEARTBEAT
 parseCommand "\005" = Just DISCONNECT
 parseCommand _ = Nothing
 
-
 type MDError = ByteString
 
-   
-read_till_empty :: Socket a -> IO [ByteString]
-read_till_empty sock = do
-  frame <- Z.receive sock []
-  if frame == ""
-     then return []
-     else (frame:) <$> read_till_empty sock
-
-
-send_all :: Socket a -> [ByteString] -> IO ()
-send_all sock = go
-  where go [l] = Z.send sock l []
-        go (x:xs) =  Z.send sock x [SndMore] >> go xs
-        go []     = error "empty send not allowed"
-
-
-send_to_broker :: Socket a -> ResponseCode -> [ByteString] ->
+sendToBroker :: Socket a -> ResponseCode -> [ByteString] ->
                   [ByteString] -> IO ()
-send_to_broker sock cmd option message =
-  send_all sock $ ["",
+sendToBroker sock cmd option message =
+  sendAll sock $ ["",
                    pack $ show WORKER_PROTOCOL,
                    pack $ show cmd] ++ option ++ message
 
@@ -80,10 +68,10 @@ Frames 5+: Reply body (opaque binary)
 
 -- FIXME might we ever want to send a multi-part body?
 --
-send_response :: Socket a -> Response -> IO ()
-send_response sock resp = send_to_broker sock REPLY (envelope resp) (body resp)
+sendResponse :: Socket a -> Response -> IO ()
+sendResponse sock resp = sendToBroker sock REPLY (envelope resp) (body resp)
 
---  send_to_broker sock REPLY Nothing [reply])
+--  sendToBroker sock REPLY Nothing [reply])
 
 whileJust :: Monad m => (b -> m (Maybe b)) -> b -> m b
 whileJust action seed = action seed >>=  maybe (return seed) (whileJust action)
@@ -102,7 +90,7 @@ data WorkerState a = WorkerState { heartbeat_at :: ! UTCTime,
                                    broker       :: String,
                                    context      :: System.ZMQ.Context,
                                    svc          :: ByteString,
-                                   handler      :: ByteString -> IO ByteString
+                                   handler      :: [ByteString] -> IO [ByteString]
                                  }
 
 epoch :: UTCTime
@@ -112,9 +100,9 @@ lIVENESS :: Int
 lIVENESS = 3
 
 
-withWorker :: String -> ByteString -> (ByteString -> IO ByteString) -> IO ()
+withWorker :: String -> ByteString -> ([ByteString] -> IO [ByteString]) -> IO ()
 withWorker  broker_ service_ io =
- withContext 1 $ \c -> 
+ withContext 1 $ \c ->
  start WorkerState { broker = broker_,
                      context = c,
                      svc = service_,
@@ -124,15 +112,13 @@ withWorker  broker_ service_ io =
                      heartbeat = 2,
                      reconnect = 2
                    }
- 
-
 
 withBroker :: (Socket XReq -> WorkerState a -> IO b) -> WorkerState t -> IO b
 withBroker go worker =
   withSocket (context worker) XReq $ \sock -> do
     loggedPut ( "connecting to broker " ++ broker worker)
     connect sock (broker worker)
-    send_to_broker sock READY [svc worker] []
+    sendToBroker sock READY [svc worker] []
     now <- getCurrentTime
     let time = addUTCTime (fromIntegral $ heartbeat worker) now
     loggedPut ("beat at:" ++ show time)
@@ -181,7 +167,7 @@ receive sock worker = do loggedPut "polling"
       -- loggedPut $ "beat at " ++ show (heartbeat_at worker)
       if {-# SCC "time_comparison" #-} time > heartbeat_at worker
         then do --loggedPut "sending heartbeat"
-                {-# SCC "postcheck_send" #-} send_to_broker sock WORKER_HEARTBEAT [] []
+                {-# SCC "postcheck_send" #-} sendToBroker sock WORKER_HEARTBEAT [] []
                 --loggedPut "sent heartbeat!"
                 {-# SCC "postcheck_return" #-} return $ Just $ updateWorkerTime worker time
         else return $ Just worker
@@ -201,11 +187,11 @@ receive sock worker = do loggedPut "polling"
       let new_worker = worker { liveness = lIVENESS }
       case command of
         Just REQUEST -> do
-          addresses <- read_till_empty sock
-          msg <- zrecv
-          reply_string <- (handler worker) msg
-          send_response sock Response { envelope = addresses,
-                                        body = [reply_string] }
+          addresses   <- receiveUntilEmpty sock
+          msgs        <- receiveUntilEnd   sock
+          replyString <- handler worker msgs
+          sendResponse sock Response { envelope = addresses,
+                                        body = replyString }
           return $ Just new_worker
         Just HEARTBEAT -> do
           -- loggedPut "handling a heartbeat"

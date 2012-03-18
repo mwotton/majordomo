@@ -9,11 +9,15 @@ module System.Network.ZMQ.MDP.Client (
   withClientSocket
 ) where
 
+-- libraries
 import Data.ByteString.Char8
 import qualified System.ZMQ as Z
 import System.ZMQ hiding(send)
 import Control.Applicative
 import System.Timeout
+
+-- friends
+import System.Network.ZMQ.MDP.Util
 
 data Protocol = MDCP01
 
@@ -46,27 +50,9 @@ sendAndReceive mdpcs svc msgs =
      case maybeprot of
        Nothing -> return $ Left ClientTimedOut
        Just "MDPC01" -> do
-         res <- Response MDCP01 <$> receive sock [] <*> receiveTillEmpty sock
+         res <- Response MDCP01 <$> receive sock [] <*> receiveUntilEnd sock
          return $ Right res
        _ -> return $ Left ClientBadProtocol
   where
     sock = clientSocket mdpcs
 
---
--- Helper functions
---
-
-receiveTillEmpty :: Socket a -> IO [ByteString]
-receiveTillEmpty sock = do
-  more <- Z.moreToReceive sock
-  if more
-    then (:) <$> receive sock [] <*> receiveTillEmpty sock
-    else return []
-
---
--- Sends a multipart message
---
-sendAll :: Socket a -> [ByteString] -> IO ()
-sendAll _sock []     = return ()
-sendAll sock (m:[]) = Z.send sock m []
-sendAll sock (m:ms) = Z.send sock m [SndMore] >> sendAll sock ms

@@ -3,10 +3,11 @@ module Main where
 import Data.ByteString hiding (map)
 
 import qualified System.Network.ZMQ.MDP.Worker as W
-import Data.Foldable
-import Control.Concurrent.Thread.Group as TG
-import System.Posix.Signals
+import           Data.Foldable
+import           Control.Concurrent.Thread.Group as TG
+import           System.Posix.Signals
 import qualified Control.Concurrent as CC
+import qualified Data.ByteString.Char8 as BS
 
 threaded :: [IO ()] -> IO ()
 threaded actions = do
@@ -22,10 +23,5 @@ threaded actions = do
 
 main :: IO ()
 main = threaded $ flip map [1..4] $ \tid ->
-  W.withWorker "tcp://127.0.0.1:5555" "echo"
-               (\x ->  return ("hi there, " `append` x))
-
- 
- -- withContext 1 $ \c ->
- --    threaded $ flip map [1..4] $ \tid ->
- --      W.start W.defaultWorker {                            }
+  W.withWorker "tcp://127.0.0.1:5773" "echo"
+               (\msgs ->  return $ "hi there, ":msgs)
