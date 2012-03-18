@@ -26,7 +26,7 @@ Source-Repository head
 
 Executable mdp_client
   Main-is: mdp_client.hs
-  Build-depends: majordomo,base, bytestring, cmdargs
+  Build-depends: majordomo ==0.1.2, bytestring, cmdargs,base
   hs-source-dirs: src
   ghc-options: -O2 -threaded
 
@@ -34,8 +34,9 @@ Executable echoworker
   Main-is: echoworker.hs
   ghc-options: -O2 -threaded
   ghc-prof-options: -auto-all
-  Build-depends: majordomo,base, bytestring, threads, unix
   hs-source-dirs: src
+  Build-depends: majordomo ==0.1.2,bytestring, 
+                 threads, unix,base
 
 Library
   -- Modules exported by the library.
@@ -46,7 +47,7 @@ Library
   hs-source-dirs: lib
   ghc-prof-options: -auto-all
   ghc-options: -O2
-  Build-depends: base >= 2 && <= 4.5.0.0,
+  Build-depends: base >= 2 && <= 4.5.0.0, 
                  zeromq-haskell >= 0.8.4,
                  bytestring, monad-loops, time, old-locale
   
