@@ -39,14 +39,25 @@ withClientSocket socketAddress io =
    connect s socketAddress
    io (ClientSocket s)
 
-
+-- pretty sure there's a nicer way of doing this...
+retry :: Monad m => Int -> m (Maybe a) -> m (Maybe a)
+retry n action = go n
+  where go 0 = return Nothing
+        go n = do
+          result <- action
+          case result of
+            Nothing -> go (n-1)
+            Just x -> return $ Just x
+    
 sendAndReceive :: ClientSocket -> ByteString -> [ByteString] -> IO (Either ClientError Response)
 sendAndReceive mdpcs svc msgs =
   do -- Z.send sock "" [SndMore]
      Z.send sock "MDPC01"  [SndMore]
      Z.send sock svc       [SndMore]
      sendAll sock msgs
-     maybeprot <- timeout (1000000 * 3) $ receive sock []
+     -- arguably we shouldn't retry if the protocol is bad.
+     -- but i'm disinclined to make the code more complex to cope
+     maybeprot <- retry 3 $ timeout (1000000 * 3) $ receive sock []
      case maybeprot of
        Nothing -> return $ Left ClientTimedOut
        Just "MDPC01" -> do

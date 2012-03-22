@@ -1,5 +1,5 @@
 Name:                majordomo
-Version:             0.1.2
+Version:             0.1.4
 Synopsis:            Majordomo protocol for ZeroMQ
 Description:         The Majordomo Protocol (MDP) defines a reliable
                      service-oriented request-reply dialog between a
@@ -26,7 +26,7 @@ Source-Repository head
 
 Executable mdp_client
   Main-is: mdp_client.hs
-  Build-depends: majordomo ==0.1.2, bytestring, cmdargs,base
+  Build-depends: majordomo ==0.1.4, bytestring, cmdargs,base
   hs-source-dirs: src
   ghc-options: -O2 -threaded
 
@@ -35,7 +35,7 @@ Executable echoworker
   ghc-options: -O2 -threaded
   ghc-prof-options: -auto-all
   hs-source-dirs: src
-  Build-depends: majordomo ==0.1.2,bytestring, 
+  Build-depends: majordomo ==0.1.4,bytestring, 
                  threads, unix,base
 
 Library
