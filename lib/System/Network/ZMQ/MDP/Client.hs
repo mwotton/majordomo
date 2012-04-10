@@ -57,7 +57,12 @@ sendAndReceive mdpcs svc msgs =
      sendAll sock msgs
      -- arguably we shouldn't retry if the protocol is bad.
      -- but i'm disinclined to make the code more complex to cope
-     maybeprot <- retry 3 $ timeout (1000000 * 3) $ receive sock []
+     
+     -- receive crashes hard when you try to timeout - but later, in zmq_term.
+     -- very odd
+
+     maybeprot <- retry 3 $ poll [S sock Z.In] (1000000 * 3) >>= pollExtract
+     -- maybeprot <- retry 3 $ timeout (1000000 * 3) $ receive sock []
      case maybeprot of
        Nothing -> return $ Left ClientTimedOut
        Just "MDPC01" -> do
@@ -65,5 +70,8 @@ sendAndReceive mdpcs svc msgs =
          return $ Right res
        _ -> return $ Left ClientBadProtocol
   where
+    pollExtract [S s Z.In] = Just <$> receive s [] 
+    pollExtract _ = return Nothing
+    
     sock = clientSocket mdpcs
 
