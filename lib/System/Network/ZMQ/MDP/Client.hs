@@ -27,23 +27,29 @@ data Response = Response { protocol :: Protocol,
 
 
 -- this can either be XReq or Req...
-data ClientSocket = ClientSocket { clientSocket :: Socket Req }
+data ClientSocket = ClientSocket { clientSocket :: Socket XReq }
 
 
 data ClientError = ClientTimedOut
                  | ClientBadProtocol
 
 withClientSocket :: String -> (ClientSocket -> IO a) -> IO a
-withClientSocket socketAddress io =
- withContext 1 $ \c -> withSocket c Req $ \s -> do
-   connect s socketAddress
-   io (ClientSocket s)
-
+withClientSocket socketAddress io = do
+  outer <- withContext 1 $ \c -> do
+    res <- withSocket c XReq $ \s -> do
+      connect s socketAddress
+      res <- io (ClientSocket s)
+      return res
+    return res
+  return outer
+  
 -- pretty sure there's a nicer way of doing this...
-retry :: Monad m => Int -> m (Maybe a) -> m (Maybe a)
-retry n action = go n
+-- retry :: Monad m => Int -> m (Maybe a) -> m (Maybe a)
+retry :: (Eq a1, Num a1) => a1 -> IO (Maybe a) -> IO (Maybe a)
+retry n_ action = go n_
   where go 0 = return Nothing
         go n = do
+          -- Prelude.putStrLn "Retrying action"
           result <- action
           case result of
             Nothing -> go (n-1)
