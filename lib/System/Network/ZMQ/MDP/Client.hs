@@ -27,7 +27,7 @@ data Response = Response { protocol :: Protocol,
 
 
 -- this can either be XReq or Req...
-data ClientSocket = ClientSocket { clientSocket :: Socket XReq }
+data ClientSocket = ClientSocket { clientSocket :: Socket Req }
 
 
 data ClientError = ClientTimedOut
@@ -36,25 +36,13 @@ data ClientError = ClientTimedOut
 withClientSocket :: String -> (ClientSocket -> IO a) -> IO a
 withClientSocket socketAddress io = do
   outer <- withContext 1 $ \c -> do
-    res <- withSocket c XReq $ \s -> do
+    res <- withSocket c Req $ \s -> do
       connect s socketAddress
       res <- io (ClientSocket s)
       return res
     return res
   return outer
   
--- pretty sure there's a nicer way of doing this...
--- retry :: Monad m => Int -> m (Maybe a) -> m (Maybe a)
-retry :: (Eq a1, Num a1) => a1 -> IO (Maybe a) -> IO (Maybe a)
-retry n_ action = go n_
-  where go 0 = return Nothing
-        go n = do
-          -- Prelude.putStrLn "Retrying action"
-          result <- action
-          case result of
-            Nothing -> go (n-1)
-            Just x -> return $ Just x
-    
 sendAndReceive :: ClientSocket -> ByteString -> [ByteString] -> IO (Either ClientError Response)
 sendAndReceive mdpcs svc msgs =
   do -- Z.send sock "" [SndMore]
@@ -66,8 +54,9 @@ sendAndReceive mdpcs svc msgs =
      
      -- receive crashes hard when you try to timeout - but later, in zmq_term.
      -- very odd
-
-     maybeprot <- retry 3 $ poll [S sock Z.In] (1000000 * 3) >>= pollExtract
+     -- following the design of the c client, we use a Req socket, 
+     -- and only try once.
+     maybeprot <- poll [S sock Z.In] (1000000 * 3) >>= pollExtract
      -- maybeprot <- retry 3 $ timeout (1000000 * 3) $ receive sock []
      case maybeprot of
        Nothing -> return $ Left ClientTimedOut

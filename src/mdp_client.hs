@@ -28,6 +28,7 @@ main = do
     else C.withClientSocket (broker s) $ \sock -> do
       res <- C.sendAndReceive sock (pack $ service s) (Prelude.map pack $ message_parts s)
       putStr $ case res of
+        -- nb we really should try more than once.
         Left C.ClientTimedOut    ->  "Timed out!"
         Left C.ClientBadProtocol -> "Bad protocol!"
         Right l ->  BS.concat . L.intersperse "\n" $ C.response l
