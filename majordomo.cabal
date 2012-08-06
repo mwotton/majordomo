@@ -14,7 +14,7 @@ Description:         The Majordomo Protocol (MDP) defines a reliable
 License:             BSD3
 License-file:        LICENSE
 Author:              Mark Wotton, Sean Seefried
-Maintainer:          mark@ninjablocks.com, sean@ninjablocks.com
+Maintainer:          mwotton@gmail.com
 
 Category:            Network
 Build-type:          Simple
@@ -22,7 +22,7 @@ Cabal-version: >= 1.8
 Extra-Source-Files:  README.md
 Source-Repository head
    type: git
-   location: git://github.com/ninjablocks/majordomo.git
+   location: git://github.com/mwotton/majordomo.git
 
 Executable mdp_client
   Main-is: mdp_client.hs
